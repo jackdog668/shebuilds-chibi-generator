@@ -50,8 +50,9 @@ export default function Page() {
           <em className="font-display font-light italic text-cream-muted">right</em>.
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-cream-muted">
-          {brand.subTagline} Eight aesthetics, your palette, ready-to-paste AI prompts.
-          No login, no watermark, no limits.
+          {brand.subTagline} Built for Etsy sellers, KDP authors, and sticker shops —
+          eight aesthetics, your palette, ready-to-paste AI prompts. No login,
+          no watermark, no limits.
         </p>
       </section>
 

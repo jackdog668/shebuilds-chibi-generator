@@ -1,31 +1,18 @@
-/**
- * User-saved favorites — persisted to localStorage.
- *
- * Distinct from the curated PRESETS in `presets.ts`:
- *   - PRESETS are brand-authored, ship with the app, immutable
- *   - FAVORITES are user-authored, written client-side, fully mutable
- *
- * Schema is versioned via the storage key. If we ever add fields to
- * SavedFavorite, bump the version and write a migration — never silently
- * change the v1 shape.
- */
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { PATTERN_LABELS, type PatternState } from "./types";
+import { CHIBI_STYLE_LABELS, type ChibiState } from "./types";
 
 export interface SavedFavorite {
   id: string;
   name: string;
-  state: PatternState;
+  state: ChibiState;
   savedAt: number;
 }
 
-const STORAGE_KEY = "shebuilds-pattern-favorites:v1";
+const STORAGE_KEY = "shebuilds-chibi-favorites:v1";
 const MAX_FAVORITES = 24;
 
-/** Read favorites from localStorage. Returns [] on any failure. */
 function readFavorites(): SavedFavorite[] {
   if (typeof window === "undefined") return [];
   try {
@@ -38,7 +25,6 @@ function readFavorites(): SavedFavorite[] {
   }
 }
 
-/** Write favorites to localStorage. Swallows quota errors. */
 function writeFavorites(favs: SavedFavorite[]): void {
   if (typeof window === "undefined") return;
   try {
@@ -55,51 +41,38 @@ function generateId(): string {
   return `fav_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function isSameState(a: PatternState, b: PatternState): boolean {
+export function isSameState(a: ChibiState, b: ChibiState): boolean {
   return (
-    a.type === b.type &&
+    a.style === b.style &&
+    a.hair === b.hair &&
+    a.expression === b.expression &&
+    a.accessory === b.accessory &&
+    a.hairColor === b.hairColor &&
+    a.outfitColor === b.outfitColor &&
     a.bg === b.bg &&
-    a.fg1 === b.fg1 &&
-    a.fg2 === b.fg2 &&
-    a.scale === b.scale &&
-    a.density === b.density &&
-    a.rotation === b.rotation &&
     a.seed === b.seed
   );
 }
 
-/**
- * Policy: auto-name from pattern + date, skip exact duplicates silently,
- * cap via FIFO eviction (handled by the hook's .slice(0, MAX_FAVORITES)).
- */
 export function createFavoriteFromState(
-  state: PatternState,
+  state: ChibiState,
   existing: SavedFavorite[],
   proposedName?: string,
 ): SavedFavorite | null {
   if (existing.some((f) => isSameState(f.state, state))) return null;
   const date = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const name = proposedName?.trim() || `${PATTERN_LABELS[state.type]} · ${date}`;
+  const name = proposedName?.trim() || `${CHIBI_STYLE_LABELS[state.style]} · ${date}`;
   return { id: "", name, state, savedAt: 0 };
 }
 
 export interface UseFavoritesResult {
   favorites: SavedFavorite[];
   hydrated: boolean;
-  save: (state: PatternState, proposedName?: string) => SavedFavorite | null;
+  save: (state: ChibiState, proposedName?: string) => SavedFavorite | null;
   remove: (id: string) => void;
   clear: () => void;
 }
 
-/**
- * SSR-safe hook. On server / first paint we return [] + hydrated=false,
- * then hydrate from localStorage in an effect. The `hydrated` flag lets
- * the UI suppress save buttons until storage is readable, preventing
- * a flash of "Save" that would no-op on a not-yet-hydrated state.
- *
- * Cross-tab sync via the `storage` event — open the app in two tabs,
- * save in one, see it in the other. Cheap UX win.
- */
 export function useFavorites(): UseFavoritesResult {
   const [favorites, setFavorites] = useState<SavedFavorite[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -116,11 +89,9 @@ export function useFavorites(): UseFavoritesResult {
   }, []);
 
   const save = useCallback(
-    (state: PatternState, proposedName?: string) => {
+    (state: ChibiState, proposedName?: string) => {
       const fav = createFavoriteFromState(state, favorites, proposedName);
       if (!fav) return null;
-      // Stamp id + savedAt here so the save fn can stay focused on
-      // policy (name, dedupe, cap) and not bookkeeping.
       const stamped: SavedFavorite = {
         ...fav,
         id: fav.id || generateId(),

@@ -1,34 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { Download, FileText, Image as ImageIcon, Link2, Check } from "lucide-react";
-import { buildSVG } from "@/lib/patterns/engine";
-import {
-  downloadKDPpdf,
-  downloadPNG,
-  downloadSVG,
-  KDP_PIXEL_W,
-  KDP_PIXEL_H,
-} from "@/lib/exports";
-import { encodeState } from "@/lib/patterns/url-state";
-import type { PatternState } from "@/lib/patterns/types";
+import { Copy, Download, Image as ImageIcon, Link2, Check } from "lucide-react";
+import { dicebearUrl, dicebearPngUrl } from "@/lib/chibis/dicebear";
+import { buildPrompt } from "@/lib/chibis/prompt-builder";
+import { encodeState } from "@/lib/chibis/url-state";
+import type { ChibiState } from "@/lib/chibis/types";
 import { BrandButton } from "./brand-button";
 
 interface Props {
-  state: PatternState;
+  state: ChibiState;
 }
 
 type Status = "idle" | "working" | "done" | "error";
 
 export function ExportBar({ state }: Props) {
+  const [promptStatus, setPromptStatus] = useState<Status>("idle");
   const [svgStatus, setSvgStatus] = useState<Status>("idle");
   const [pngStatus, setPngStatus] = useState<Status>("idle");
-  const [pdfStatus, setPdfStatus] = useState<Status>("idle");
   const [shareStatus, setShareStatus] = useState<Status>("idle");
 
   async function withStatus(
     setter: (s: Status) => void,
-    fn: () => Promise<void> | void
+    fn: () => Promise<void> | void,
   ) {
     setter("working");
     try {
@@ -42,54 +36,72 @@ export function ExportBar({ state }: Props) {
     }
   }
 
-  const handleSVG = () =>
-    withStatus(setSvgStatus, () => {
-      const svg = buildSVG(state, { width: 1200, height: 1200 });
-      downloadSVG(svg);
+  const handleCopyPrompt = () =>
+    withStatus(setPromptStatus, async () => {
+      const prompt = buildPrompt(state);
+      await navigator.clipboard.writeText(prompt.full);
     });
 
-  const handlePNG = () =>
+  const handleDownloadSVG = () =>
+    withStatus(svgStatus !== "working" ? setSvgStatus : () => {}, async () => {
+      const url = dicebearUrl(state, 1024);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`SVG fetch failed: ${res.status}`);
+      const svg = await res.text();
+      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      triggerDownload(blob, `shebuilds-chibi-${state.style}-${state.seed}.svg`);
+    });
+
+  const handleDownloadPNG = () =>
     withStatus(setPngStatus, async () => {
-      const svg = buildSVG(state, { width: 2400, height: 2400 });
-      await downloadPNG(svg, 2400, 2400);
-    });
-
-  const handlePDF = () =>
-    withStatus(setPdfStatus, async () => {
-      const svg = buildSVG(state, { width: KDP_PIXEL_W, height: KDP_PIXEL_H });
-      await downloadKDPpdf(svg);
+      const url = dicebearPngUrl(state, 1024);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`PNG fetch failed: ${res.status}`);
+      const blob = await res.blob();
+      triggerDownload(blob, `shebuilds-chibi-${state.style}-${state.seed}.png`);
     });
 
   const handleShare = () =>
     withStatus(setShareStatus, async () => {
-      const url = `${window.location.origin}${window.location.pathname}?${encodeState(state)}`;
-      // Update URL without navigation
-      window.history.replaceState({}, "", `?${encodeState(state)}`);
+      const qs = encodeState(state);
+      const url = `${window.location.origin}${window.location.pathname}?${qs}`;
+      window.history.replaceState({}, "", `?${qs}`);
       await navigator.clipboard.writeText(url);
     });
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <BrandButton variant="gold" onClick={handlePDF} disabled={pdfStatus === "working"}>
-        <Status status={pdfStatus} icon={<FileText className="h-4 w-4" />} idleLabel="KDP PDF" />
+      <BrandButton variant="gold" onClick={handleCopyPrompt} disabled={promptStatus === "working"}>
+        <StatusLine status={promptStatus} icon={<Copy className="h-4 w-4" />} idleLabel="Copy AI prompt" doneLabel="Copied" />
       </BrandButton>
 
-      <BrandButton variant="outline" onClick={handlePNG} disabled={pngStatus === "working"}>
-        <Status status={pngStatus} icon={<ImageIcon className="h-4 w-4" />} idleLabel="PNG · 2400" />
+      <BrandButton variant="outline" onClick={handleDownloadPNG} disabled={pngStatus === "working"}>
+        <StatusLine status={pngStatus} icon={<ImageIcon className="h-4 w-4" />} idleLabel="PNG · 1024" />
       </BrandButton>
 
-      <BrandButton variant="outline" onClick={handleSVG} disabled={svgStatus === "working"}>
-        <Status status={svgStatus} icon={<Download className="h-4 w-4" />} idleLabel="SVG" />
+      <BrandButton variant="outline" onClick={handleDownloadSVG} disabled={svgStatus === "working"}>
+        <StatusLine status={svgStatus} icon={<Download className="h-4 w-4" />} idleLabel="SVG" />
       </BrandButton>
 
       <BrandButton variant="ghost" onClick={handleShare} disabled={shareStatus === "working"}>
-        <Status status={shareStatus} icon={<Link2 className="h-4 w-4" />} idleLabel="Copy link" doneLabel="Copied" />
+        <StatusLine status={shareStatus} icon={<Link2 className="h-4 w-4" />} idleLabel="Copy link" doneLabel="Copied" />
       </BrandButton>
     </div>
   );
 }
 
-function Status({
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function StatusLine({
   status,
   icon,
   idleLabel,

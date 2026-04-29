@@ -1,12 +1,13 @@
 "use client";
 
-import { PRESETS } from "@/lib/patterns/presets";
-import type { PatternState } from "@/lib/patterns/types";
+import { PRESETS } from "@/lib/chibis/presets";
+import { isSameState } from "@/lib/chibis/favorites";
+import type { ChibiState } from "@/lib/chibis/types";
 import { cn } from "@/lib/cn";
 
 interface Props {
-  current: PatternState;
-  onSelect: (state: PatternState) => void;
+  current: ChibiState;
+  onSelect: (state: ChibiState) => void;
 }
 
 export function PresetRail({ current, onSelect }: Props) {
@@ -21,11 +22,7 @@ export function PresetRail({ current, onSelect }: Props) {
       <div className="-mx-6 overflow-x-auto px-6 pb-2 lg:mx-0 lg:px-0">
         <div className="flex gap-2 lg:flex-wrap">
           {PRESETS.map((preset) => {
-            const active =
-              current.type === preset.state.type &&
-              current.bg === preset.state.bg &&
-              current.fg1 === preset.state.fg1 &&
-              current.fg2 === preset.state.fg2;
+            const active = isSameState(current, preset.state);
             return (
               <button
                 key={preset.id}
@@ -36,13 +33,11 @@ export function PresetRail({ current, onSelect }: Props) {
                   "group flex flex-shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs transition-all",
                   active
                     ? "border-gold/60 bg-gold/10 text-cream"
-                    : "border-cream/10 text-cream-muted hover:border-cream/30 hover:text-cream"
+                    : "border-cream/10 text-cream-muted hover:border-cream/30 hover:text-cream",
                 )}
               >
-                <PresetSwatch preset={preset.state} />
-                <span className="font-display tracking-tight">
-                  {preset.name}
-                </span>
+                <PresetSwatch state={preset.state} />
+                <span className="font-display tracking-tight">{preset.name}</span>
               </button>
             );
           })}
@@ -52,15 +47,15 @@ export function PresetRail({ current, onSelect }: Props) {
   );
 }
 
-function PresetSwatch({ preset }: { preset: PatternState }) {
+function PresetSwatch({ state }: { state: ChibiState }) {
   return (
     <span
       className="flex h-3.5 w-3.5 overflow-hidden rounded-full ring-1 ring-cream/10"
       aria-hidden
     >
-      <span className="h-full w-1/3" style={{ background: preset.bg }} />
-      <span className="h-full w-1/3" style={{ background: preset.fg1 }} />
-      <span className="h-full w-1/3" style={{ background: preset.fg2 }} />
+      <span className="h-full w-1/3" style={{ background: state.bg }} />
+      <span className="h-full w-1/3" style={{ background: state.hairColor }} />
+      <span className="h-full w-1/3" style={{ background: state.outfitColor }} />
     </span>
   );
 }

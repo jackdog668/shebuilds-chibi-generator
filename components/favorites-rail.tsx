@@ -1,13 +1,17 @@
 "use client";
 
-import { Bookmark, BookmarkPlus, X } from "lucide-react";
-import { isSameState, useFavorites, type SavedFavorite } from "@/lib/patterns/favorites";
-import type { PatternState } from "@/lib/patterns/types";
+import { BookmarkPlus, X } from "lucide-react";
+import {
+  isSameState,
+  useFavorites,
+  type SavedFavorite,
+} from "@/lib/chibis/favorites";
+import type { ChibiState } from "@/lib/chibis/types";
 import { cn } from "@/lib/cn";
 
 interface Props {
-  current: PatternState;
-  onSelect: (state: PatternState) => void;
+  current: ChibiState;
+  onSelect: (state: ChibiState) => void;
 }
 
 export function FavoritesRail({ current, onSelect }: Props) {
@@ -15,7 +19,6 @@ export function FavoritesRail({ current, onSelect }: Props) {
 
   const handleSave = () => save(current);
 
-  // Avoid SSR/hydration mismatch — render skeleton until client storage read
   if (!hydrated) {
     return (
       <div className="flex items-center gap-3">
@@ -41,7 +44,7 @@ export function FavoritesRail({ current, onSelect }: Props) {
 
       {favorites.length === 0 ? (
         <p className="font-mono text-[11px] leading-relaxed text-cream-muted/60">
-          Nothing saved yet. Tweak a pattern you like, then hit{" "}
+          Nothing saved yet. Build a chibi you love, then hit{" "}
           <span className="text-cream">Save current</span>.
         </p>
       ) : (
@@ -104,16 +107,15 @@ function FavoriteChip({
   );
 }
 
-function Swatch({ state }: { state: PatternState }) {
+function Swatch({ state }: { state: ChibiState }) {
   return (
     <span
       className="flex h-3.5 w-3.5 overflow-hidden rounded-full ring-1 ring-cream/10"
       aria-hidden
     >
       <span className="h-full w-1/3" style={{ background: state.bg }} />
-      <span className="h-full w-1/3" style={{ background: state.fg1 }} />
-      <span className="h-full w-1/3" style={{ background: state.fg2 }} />
+      <span className="h-full w-1/3" style={{ background: state.hairColor }} />
+      <span className="h-full w-1/3" style={{ background: state.outfitColor }} />
     </span>
   );
 }
-
